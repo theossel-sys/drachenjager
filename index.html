@@ -135,6 +135,22 @@
     }
     #start-btn:hover { background: var(--gold-lt); }
     #start-btn:disabled { opacity: .4; cursor: not-allowed; }
+    #continue-btn {
+      width: 100%;
+      max-width: 480px;
+      padding: 16px;
+      background: var(--green);
+      border: none;
+      border-radius: var(--radius);
+      color: #fff;
+      font-size: 1.2rem;
+      font-weight: bold;
+      font-family: inherit;
+      cursor: pointer;
+      letter-spacing: 2px;
+      transition: background .2s;
+    }
+    #continue-btn:hover { background: #2ecc71; }
 
     #compat-warning {
       background: #3d2000;
@@ -356,7 +372,8 @@
     </div>
   </div>
 
-  <button id="start-btn" disabled>Abenteuer beginnen!</button>
+  <button id="start-btn" disabled>Neues Abenteuer beginnen!</button>
+  <button id="continue-btn" style="display:none">Abenteuer fortsetzen!</button>
 </div>
 
 <!-- ===================== GAME SCREEN ===================== -->
@@ -414,7 +431,8 @@ const COMMANDS = {
   inventory: ['inventar','tasche','gegenstände','items','beutel'],
   move:      ['weiter','gehen','weitergehen','vorwärts','nächste','nächstes','weitergehn'],
   flee:      ['fliehen','flüchten','weglaufen','rennen','flucht'],
-  pause:     ['pause','stopp','stop'],
+  pause:     ['pause'],
+  stop:      ['stopp','stop','beenden','aufhören','schluss'],
   resume:    ['weiterspielen','fortsetzen','spielen','weiter spielen'],
   help:      ['hilfe','was kann ich','befehle','kommandos'],
   stats:     ['werte','status','statistiken','attribute'],
@@ -707,7 +725,7 @@ const Parser = {
     for (const transcript of transcripts) {
       const norm = transcript.toLowerCase();
       // Priority order matters
-      const order = ['pause','resume','spell','heal','stealth','flee','attack','inventory','stats','rest','move','help'];
+      const order = ['stop','pause','resume','spell','heal','stealth','flee','attack','inventory','stats','rest','move','help'];
       for (const cmd of order) {
         const synonyms = COMMANDS[cmd];
         if (!synonyms) continue;
@@ -1338,6 +1356,24 @@ const Game = {
       return;
     }
 
+    // --- STOP (Spiel beenden, Fortschritt gespeichert) ---
+    if (cmd === 'stop') {
+      Speech.stopListening();
+      speechSynthesis.cancel();
+      Persist.save();
+      GS.mode = 'stopped';
+      Narration.tellThen(
+        `Spiel gestoppt. Dein Fortschritt wurde gespeichert. Bis zum nächsten Mal, ${GS.character.name}!`,
+        'system',
+        () => {
+          // Return to setup screen
+          document.getElementById('game-screen').style.display = 'none';
+          document.getElementById('setup-screen').style.display = 'flex';
+        }
+      );
+      return;
+    }
+
     // --- PAUSE / RESUME ---
     if (cmd === 'pause') {
       GS.mode = 'paused';
@@ -1504,7 +1540,24 @@ UI._currentHint = () => document.getElementById('hint-bar').textContent;
   startBtn.addEventListener('click', () => {
     const name = nameInput.value.trim();
     if (!name || !selectedClass) return;
+    Persist.clear();
     Game.start(name, selectedClass);
+  });
+
+  // Continue saved game
+  const continueBtn = document.getElementById('continue-btn');
+  continueBtn.addEventListener('click', () => {
+    const saved = Persist.load();
+    if (!saved) return;
+    GS = saved;
+    UI.switchToGame();
+    UI.updateStatus();
+    const c = GS.character;
+    Narration.tellThen(
+      `Willkommen zurück, ${c.name}! Du bist Stufe ${c.level} ${c.cls}. Dein Abenteuer geht weiter!`,
+      'story',
+      () => Game.loadCurrentRoom()
+    );
   });
 
   // Text fallback for game commands
@@ -1524,13 +1577,13 @@ UI._currentHint = () => document.getElementById('hint-bar').textContent;
   // Load existing save?
   const saved = Persist.load();
   if (saved && saved.character && saved.character.name) {
-    // Could offer "continue" — for simplicity, just pre-fill name
-    nameInput.value = saved.character.name;
-    const savedClass = saved.character.cls;
-    if (savedClass) {
-      const btn = document.querySelector(`[data-class="${savedClass}"]`);
-      if (btn) { btn.classList.add('selected'); selectedClass = savedClass; }
-    }
+    const c = saved.character;
+    continueBtn.style.display = 'block';
+    continueBtn.textContent = `▶ Weiterspielen mit ${c.name} (Stufe ${c.level} ${c.cls})`;
+    // Pre-fill for new game too
+    nameInput.value = c.name;
+    const btn = document.querySelector(`[data-class="${c.cls}"]`);
+    if (btn) { btn.classList.add('selected'); selectedClass = c.cls; }
     checkReady();
   }
 })();
