@@ -1,0 +1,1477 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Drachenjäger</title>
+  <style>
+    /* === RESET & BASE === */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg:       #1a1209;
+      --surface:  #2c1f0e;
+      --border:   #5c3d1a;
+      --gold:     #c9931a;
+      --gold-lt:  #f0c040;
+      --red:      #c0392b;
+      --green:    #27ae60;
+      --blue:     #2980b9;
+      --text:     #f0e6c8;
+      --text-dim: #a0896a;
+      --radius:   8px;
+    }
+    html, body {
+      height: 100%;
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'Georgia', serif;
+      font-size: 18px;
+      line-height: 1.5;
+    }
+
+    /* === SETUP SCREEN === */
+    #setup-screen {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      padding: 24px;
+      gap: 24px;
+    }
+    #setup-screen h1 {
+      font-size: 3rem;
+      color: var(--gold-lt);
+      text-shadow: 0 0 20px var(--gold);
+      letter-spacing: 4px;
+    }
+    #setup-screen .subtitle {
+      color: var(--text-dim);
+      font-style: italic;
+      font-size: 1rem;
+    }
+    .setup-box {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 20px 28px;
+      width: 100%;
+      max-width: 480px;
+    }
+    .setup-box label {
+      display: block;
+      color: var(--gold);
+      margin-bottom: 8px;
+      font-size: 0.95rem;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+    }
+    .name-row {
+      display: flex;
+      gap: 8px;
+    }
+    #name-input {
+      flex: 1;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      color: var(--text);
+      font-size: 1.1rem;
+      padding: 10px 14px;
+      font-family: inherit;
+      outline: none;
+    }
+    #name-input:focus { border-color: var(--gold); }
+    #mic-name-btn {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      color: var(--text);
+      padding: 10px 14px;
+      cursor: pointer;
+      font-size: 1.2rem;
+      transition: border-color .2s;
+    }
+    #mic-name-btn:hover { border-color: var(--gold); }
+    #mic-name-btn.listening { border-color: var(--red); color: var(--red); animation: pulse 1s infinite; }
+
+    .class-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+      margin-top: 4px;
+    }
+    .class-btn {
+      background: var(--bg);
+      border: 2px solid var(--border);
+      border-radius: var(--radius);
+      color: var(--text);
+      padding: 14px 10px;
+      cursor: pointer;
+      text-align: center;
+      transition: border-color .2s, background .2s;
+      font-family: inherit;
+    }
+    .class-btn:hover { border-color: var(--gold); }
+    .class-btn.selected { border-color: var(--gold-lt); background: var(--surface); }
+    .class-btn .class-icon { font-size: 1.8rem; display: block; margin-bottom: 4px; }
+    .class-btn .class-name { font-weight: bold; color: var(--gold-lt); }
+    .class-btn .class-desc { font-size: 0.75rem; color: var(--text-dim); margin-top: 2px; }
+
+    #start-btn {
+      width: 100%;
+      max-width: 480px;
+      padding: 16px;
+      background: var(--gold);
+      border: none;
+      border-radius: var(--radius);
+      color: var(--bg);
+      font-size: 1.2rem;
+      font-weight: bold;
+      font-family: inherit;
+      cursor: pointer;
+      letter-spacing: 2px;
+      transition: background .2s, opacity .2s;
+    }
+    #start-btn:hover { background: var(--gold-lt); }
+    #start-btn:disabled { opacity: .4; cursor: not-allowed; }
+
+    #compat-warning {
+      background: #3d2000;
+      border: 1px solid var(--gold);
+      border-radius: var(--radius);
+      padding: 12px 16px;
+      font-size: 0.85rem;
+      color: var(--gold-lt);
+      max-width: 480px;
+      text-align: center;
+      display: none;
+    }
+
+    /* === GAME SCREEN === */
+    #game-screen {
+      display: none;
+      flex-direction: column;
+      height: 100vh;
+      max-width: 700px;
+      margin: 0 auto;
+      padding: 12px;
+      gap: 10px;
+    }
+
+    /* Status Bar */
+    #status-bar {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 10px 16px;
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      flex-wrap: wrap;
+    }
+    #player-name-display {
+      color: var(--gold-lt);
+      font-weight: bold;
+      font-size: 1rem;
+      min-width: 80px;
+    }
+    #level-display {
+      color: var(--text-dim);
+      font-size: 0.85rem;
+    }
+    .bar-wrap {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+      flex: 1;
+      min-width: 100px;
+    }
+    .bar-label { font-size: 0.7rem; color: var(--text-dim); text-transform: uppercase; letter-spacing: 1px; }
+    .bar-track {
+      height: 12px;
+      background: var(--bg);
+      border-radius: 6px;
+      overflow: hidden;
+      border: 1px solid var(--border);
+    }
+    .bar-fill {
+      height: 100%;
+      border-radius: 6px;
+      transition: width .4s ease;
+    }
+    #hp-fill  { background: var(--red); }
+    #xp-fill  { background: var(--blue); }
+    #bar-text { font-size: 0.75rem; color: var(--text-dim); text-align: right; }
+
+    /* Narration Box */
+    #narration-box {
+      flex: 1;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 16px;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+    .narration-entry {
+      padding: 10px 14px;
+      border-radius: 6px;
+      font-size: 1rem;
+      line-height: 1.6;
+      animation: fadeIn .4s ease;
+    }
+    .narration-entry.story   { background: rgba(201,147,26,.08); border-left: 3px solid var(--gold); }
+    .narration-entry.combat  { background: rgba(192,57,43,.1);   border-left: 3px solid var(--red); }
+    .narration-entry.system  { background: rgba(41,128,185,.08); border-left: 3px solid var(--blue); color: var(--text-dim); font-style: italic; }
+    .narration-entry.success { background: rgba(39,174,96,.08);  border-left: 3px solid var(--green); }
+
+    /* Voice Controls */
+    #voice-panel {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 12px 16px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    #mic-indicator {
+      width: 42px;
+      height: 42px;
+      border-radius: 50%;
+      border: 2px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.3rem;
+      flex-shrink: 0;
+      transition: border-color .2s;
+    }
+    #mic-indicator.listening { border-color: var(--red); animation: pulse 1s infinite; }
+    #mic-indicator.speaking  { border-color: var(--gold); animation: pulse 1.5s infinite; }
+    #last-command {
+      flex: 1;
+      font-size: 0.85rem;
+      color: var(--text-dim);
+      font-style: italic;
+    }
+    #hint-bar {
+      font-size: 0.8rem;
+      color: var(--text-dim);
+      text-align: right;
+    }
+
+    /* Text fallback */
+    #text-fallback {
+      display: none;
+      gap: 8px;
+    }
+    #text-fallback.visible { display: flex; }
+    #text-input-cmd {
+      flex: 1;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      color: var(--text);
+      font-size: 1rem;
+      padding: 8px 12px;
+      font-family: inherit;
+      outline: none;
+    }
+    #text-input-cmd:focus { border-color: var(--gold); }
+    #text-send-btn {
+      background: var(--gold);
+      border: none;
+      border-radius: var(--radius);
+      color: var(--bg);
+      font-weight: bold;
+      padding: 8px 16px;
+      cursor: pointer;
+      font-family: inherit;
+    }
+
+    /* Animations */
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50%       { opacity: .4; }
+    }
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(6px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    /* Scrollbar */
+    #narration-box::-webkit-scrollbar { width: 6px; }
+    #narration-box::-webkit-scrollbar-track { background: var(--bg); }
+    #narration-box::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+  </style>
+</head>
+<body>
+
+<!-- ===================== SETUP SCREEN ===================== -->
+<div id="setup-screen">
+  <h1>⚔ Drachenjäger</h1>
+  <p class="subtitle">Ein Sprachabenteuer</p>
+
+  <div id="compat-warning">
+    ⚠ Dein Browser unterstützt keine Spracheingabe.<br>
+    Für das beste Erlebnis benutze <strong>Google Chrome</strong>.<br>
+    Du kannst das Spiel auch per Texteingabe steuern.
+  </div>
+
+  <div class="setup-box">
+    <label for="name-input">Name deines Helden</label>
+    <div class="name-row">
+      <input id="name-input" type="text" placeholder="z.B. Thorin" maxlength="20" autocomplete="off">
+      <button id="mic-name-btn" title="Name per Sprache eingeben">🎤</button>
+    </div>
+  </div>
+
+  <div class="setup-box">
+    <label>Wähle deine Klasse</label>
+    <div class="class-grid">
+      <button class="class-btn" data-class="Krieger">
+        <span class="class-icon">🗡</span>
+        <span class="class-name">Krieger</span>
+        <span class="class-desc">Stark · Viel Leben · Bester Kämpfer</span>
+      </button>
+      <button class="class-btn" data-class="Paladin">
+        <span class="class-icon">🛡</span>
+        <span class="class-name">Paladin</span>
+        <span class="class-desc">Stark · Kann sich heilen</span>
+      </button>
+      <button class="class-btn" data-class="Waldläufer">
+        <span class="class-icon">🏹</span>
+        <span class="class-name">Waldläufer</span>
+        <span class="class-desc">Flink · Kann sich verstecken</span>
+      </button>
+      <button class="class-btn" data-class="Magier">
+        <span class="class-icon">🔮</span>
+        <span class="class-name">Magier</span>
+        <span class="class-desc">Wenig Leben · Mächtiger Zauber</span>
+      </button>
+    </div>
+  </div>
+
+  <button id="start-btn" disabled>Abenteuer beginnen!</button>
+</div>
+
+<!-- ===================== GAME SCREEN ===================== -->
+<div id="game-screen">
+
+  <div id="status-bar">
+    <span id="player-name-display">—</span>
+    <span id="level-display">Stufe 1</span>
+    <div class="bar-wrap">
+      <span class="bar-label">Leben</span>
+      <div class="bar-track"><div class="bar-fill" id="hp-fill" style="width:100%"></div></div>
+      <span id="bar-text">10 / 10</span>
+    </div>
+    <div class="bar-wrap">
+      <span class="bar-label">Erfahrung</span>
+      <div class="bar-track"><div class="bar-fill" id="xp-fill" style="width:0%"></div></div>
+    </div>
+  </div>
+
+  <div id="narration-box"></div>
+
+  <div id="voice-panel">
+    <div id="mic-indicator">🎤</div>
+    <div id="last-command">Bereit...</div>
+    <div id="hint-bar"></div>
+  </div>
+
+  <div id="text-fallback">
+    <input id="text-input-cmd" type="text" placeholder="Befehl eingeben...">
+    <button id="text-send-btn">Senden</button>
+  </div>
+
+</div>
+
+<script>
+'use strict';
+
+// ============================================================
+// === CONSTANTS
+// ============================================================
+const CLASSES = {
+  Krieger:    { hpBase:10, strBonus:2, weapon:'Schwert',      weaponDie:8, specialCmd:null,        icon:'🗡' },
+  Paladin:    { hpBase:9,  strBonus:1, weapon:'Streitkolben', weaponDie:6, specialCmd:'heilen',    icon:'🛡' },
+  'Waldläufer':{ hpBase:8, strBonus:0, weapon:'Bogen',        weaponDie:6, specialCmd:'schleichen',icon:'🏹' },
+  Magier:     { hpBase:6,  strBonus:0, weapon:'Zauberstab',   weaponDie:4, specialCmd:'zaubern',   icon:'🔮' },
+};
+
+const XP_TABLE = [0, 300, 900, 2700, 6500, 14000, 23000, 34000, 48000, 64000];
+
+const COMMANDS = {
+  attack:    ['angreifen','kämpfen','attackieren','schlagen','hauen','angriff','kämpfe'],
+  spell:     ['zaubern','zauber','magie','magieangriff','feuerball','blitz'],
+  heal:      ['heilen','heilung','heile','gesundheit'],
+  stealth:   ['schleichen','verstecken','verstecke','schleich','tarnen'],
+  inventory: ['inventar','tasche','gegenstände','items','beutel'],
+  move:      ['weiter','gehen','weitergehen','vorwärts','nächste','nächstes','weitergehn'],
+  flee:      ['fliehen','flüchten','weglaufen','rennen','flucht'],
+  pause:     ['pause','stopp','stop'],
+  resume:    ['weiterspielen','fortsetzen','spielen','weiter spielen'],
+  help:      ['hilfe','was kann ich','befehle','kommandos'],
+  stats:     ['werte','status','statistiken','attribute'],
+  rest:      ['rasten','ausruhen','schlafen','rast'],
+};
+
+const SAVE_KEY = 'drachenjäger_v1';
+
+// ============================================================
+// === DICE ENGINE
+// ============================================================
+const Dice = {
+  roll(sides) { return Math.floor(Math.random() * sides) + 1; },
+  roll3d6()   { return this.roll(6) + this.roll(6) + this.roll(6); },
+  modifier(score) { return Math.floor((score - 10) / 2); },
+  rollStats() {
+    return {
+      STR: this.roll3d6(), DEX: this.roll3d6(), CON: this.roll3d6(),
+      INT: this.roll3d6(), WIS: this.roll3d6(), CHA: this.roll3d6(),
+    };
+  },
+};
+
+// ============================================================
+// === GAME STATE
+// ============================================================
+let GS = {
+  mode: 'setup',
+  character: {
+    name:'', cls:'', level:1, xp:0,
+    stats:{ STR:10,DEX:10,CON:10,INT:10,WIS:10,CHA:10 },
+    maxHP:0, hp:0, ac:10,
+    inventory:[], gold:0,
+  },
+  progress: { act:0, room:0, campaignComplete:false, endlessCount:0 },
+  combat: null,
+  flags: {},
+  log: [],
+};
+
+// ============================================================
+// === PERSISTENCE
+// ============================================================
+const Persist = {
+  save() {
+    try { localStorage.setItem(SAVE_KEY, JSON.stringify(GS)); } catch(e) {}
+  },
+  load() {
+    try {
+      const raw = localStorage.getItem(SAVE_KEY);
+      return raw ? JSON.parse(raw) : null;
+    } catch(e) { return null; }
+  },
+  clear() {
+    try { localStorage.removeItem(SAVE_KEY); } catch(e) {}
+  },
+};
+
+// ============================================================
+// === SPEECH ENGINE
+// ============================================================
+const Speech = {
+  _queue: [],
+  _busy: false,
+  _voice: null,
+  _recognition: null,
+  _listening: false,
+  _retries: 0,
+  hasRecognition: false,
+  hasSynthesis: false,
+
+  init() {
+    this.hasSynthesis = 'speechSynthesis' in window;
+    const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+    this.hasRecognition = !!SR;
+    if (SR) {
+      this._recognition = new SR();
+      this._recognition.lang = 'de-DE';
+      this._recognition.continuous = false;
+      this._recognition.interimResults = false;
+      this._recognition.maxAlternatives = 3;
+    }
+    if (this.hasSynthesis) {
+      const pickVoice = () => {
+        const voices = speechSynthesis.getVoices();
+        this._voice = voices.find(v => v.lang === 'de-DE') ||
+                      voices.find(v => v.lang.startsWith('de')) ||
+                      voices[0] || null;
+      };
+      speechSynthesis.onvoiceschanged = pickVoice;
+      pickVoice();
+    }
+    if (!this.hasRecognition) {
+      document.getElementById('compat-warning').style.display = 'block';
+      document.getElementById('text-fallback').classList.add('visible');
+    }
+  },
+
+  speak(text, onDone) {
+    this._queue.push({ text, onDone });
+    if (!this._busy) this._processQueue();
+  },
+
+  _processQueue() {
+    if (!this._queue.length) { this._busy = false; return; }
+    this._busy = true;
+    const { text, onDone } = this._queue.shift();
+    UI.setMicState('speaking');
+    if (!this.hasSynthesis) {
+      if (onDone) onDone();
+      this._busy = false;
+      this._processQueue();
+      return;
+    }
+    // Split at sentence boundaries to avoid Chrome 15s cut-off
+    const sentences = text.match(/[^.!?]+[.!?]*/g) || [text];
+    let i = 0;
+    const next = () => {
+      if (i >= sentences.length) {
+        UI.setMicState('idle');
+        if (onDone) onDone();
+        this._busy = false;
+        this._processQueue();
+        return;
+      }
+      const utt = new SpeechSynthesisUtterance(sentences[i++].trim());
+      utt.lang = 'de-DE';
+      if (this._voice) utt.voice = this._voice;
+      utt.rate = 0.88;
+      utt.pitch = 1.0;
+      utt.onend = () => setTimeout(next, 80);
+      utt.onerror = () => { next(); };
+      speechSynthesis.speak(utt);
+    };
+    next();
+  },
+
+  listen(onResult) {
+    if (!this.hasRecognition) return;
+    if (this._listening) return;
+    this._listening = true;
+    this._retries = 0;
+    UI.setMicState('listening');
+    this._startListening(onResult);
+  },
+
+  _startListening(onResult) {
+    const rec = this._recognition;
+    rec.onresult = (e) => {
+      this._listening = false;
+      UI.setMicState('idle');
+      const transcripts = [];
+      for (let i = 0; i < e.results[0].length; i++) {
+        transcripts.push(e.results[0][i].transcript);
+      }
+      UI.showLastCommand(transcripts[0]);
+      onResult(transcripts);
+    };
+    rec.onnomatch = () => this._handleNoMatch(onResult);
+    rec.onerror = (e) => {
+      if (e.error === 'no-speech' || e.error === 'aborted') {
+        this._handleNoMatch(onResult);
+      } else {
+        this._listening = false;
+        UI.setMicState('idle');
+        Narration.add('Ich konnte dich nicht hören. Versuche es nochmal.', 'system');
+        setTimeout(() => Game.openCommandWindow(), 800);
+      }
+    };
+    rec.onend = () => {
+      if (this._listening) {
+        this._listening = false;
+        this._handleNoMatch(onResult);
+      }
+    };
+    try { rec.start(); } catch(e) {}
+  },
+
+  _handleNoMatch(onResult) {
+    this._listening = false;
+    this._retries++;
+    if (this._retries < 2) {
+      UI.setMicState('listening');
+      Narration.add('Hmm, ich habe dich nicht verstanden. Was möchtest du tun?', 'system');
+      setTimeout(() => this._startListening(onResult), 600);
+    } else {
+      UI.setMicState('idle');
+      Narration.add('Ich konnte dich nicht verstehen. Tippe deinen Befehl ein oder sprich deutlich.', 'system');
+      Game.openCommandWindow();
+    }
+  },
+
+  stopListening() {
+    if (!this._listening) return;
+    this._listening = false;
+    try { this._recognition.abort(); } catch(e) {}
+    UI.setMicState('idle');
+  },
+};
+
+// ============================================================
+// === NARRATION ENGINE
+// ============================================================
+const Narration = {
+  add(text, type = 'story') {
+    const box = document.getElementById('narration-box');
+    const el = document.createElement('div');
+    el.className = `narration-entry ${type}`;
+    el.textContent = text;
+    box.appendChild(el);
+    // Keep max 30 entries
+    while (box.children.length > 30) box.removeChild(box.firstChild);
+    box.scrollTop = box.scrollHeight;
+    // Save to log
+    GS.log.push(text);
+    if (GS.log.length > 50) GS.log.shift();
+  },
+
+  tell(text, type = 'story', onDone) {
+    this.add(text, type);
+    Speech.speak(text, onDone);
+  },
+
+  tellThen(text, type, fn) {
+    this.add(text, type);
+    Speech.speak(text, () => setTimeout(fn, 300));
+  },
+};
+
+// ============================================================
+// === COMMAND PARSER
+// ============================================================
+const Parser = {
+  normalize(text) {
+    return text.toLowerCase()
+      .replace(/ä/g,'ae').replace(/ö/g,'oe').replace(/ü/g,'ue').replace(/ß/g,'ss')
+      // keep original alongside normalized — handled by checking both
+      + ' ' + text.toLowerCase();
+  },
+
+  parse(transcripts) {
+    for (const transcript of transcripts) {
+      const norm = transcript.toLowerCase();
+      // Priority order matters
+      const order = ['pause','resume','spell','heal','stealth','flee','attack','inventory','stats','rest','move','help'];
+      for (const cmd of order) {
+        const synonyms = COMMANDS[cmd];
+        if (!synonyms) continue;
+        for (const syn of synonyms) {
+          const synNorm = syn.toLowerCase();
+          if (norm.includes(synNorm) || synNorm.includes(norm.trim())) {
+            return cmd;
+          }
+        }
+      }
+    }
+    return null;
+  },
+};
+
+// ============================================================
+// === UI HELPERS
+// ============================================================
+const UI = {
+  setMicState(state) {
+    const el = document.getElementById('mic-indicator');
+    el.classList.remove('listening','speaking');
+    if (state === 'listening') { el.classList.add('listening'); el.textContent = '🎙'; }
+    else if (state === 'speaking') { el.classList.add('speaking'); el.textContent = '🔊'; }
+    else el.textContent = '🎤';
+  },
+  showLastCommand(text) {
+    document.getElementById('last-command').textContent = `Du sagtest: "${text}"`;
+  },
+  setHint(text) {
+    document.getElementById('hint-bar').textContent = text;
+  },
+  updateStatus() {
+    const c = GS.character;
+    document.getElementById('player-name-display').textContent =
+      `${CLASSES[c.cls]?.icon || ''} ${c.name}`;
+    document.getElementById('level-display').textContent = `Stufe ${c.level}`;
+    const hpPct = Math.max(0, Math.round((c.hp / c.maxHP) * 100));
+    document.getElementById('hp-fill').style.width = hpPct + '%';
+    document.getElementById('bar-text').textContent = `${c.hp} / ${c.maxHP}`;
+    const xpNeeded = XP_TABLE[c.level] || XP_TABLE[XP_TABLE.length-1];
+    const xpPrev   = XP_TABLE[c.level-1] || 0;
+    const xpPct = xpNeeded > xpPrev
+      ? Math.round(((c.xp - xpPrev) / (xpNeeded - xpPrev)) * 100)
+      : 100;
+    document.getElementById('xp-fill').style.width = Math.min(100, xpPct) + '%';
+  },
+  switchToGame() {
+    document.getElementById('setup-screen').style.display = 'none';
+    const g = document.getElementById('game-screen');
+    g.style.display = 'flex';
+    if (!Speech.hasRecognition) {
+      document.getElementById('text-fallback').classList.add('visible');
+    }
+  },
+};
+
+// ============================================================
+// === CHARACTER SYSTEM
+// ============================================================
+const Character = {
+  build(name, cls) {
+    const stats = Dice.rollStats();
+    const info  = CLASSES[cls];
+    stats.STR += info.strBonus;
+    const conMod = Dice.modifier(stats.CON);
+    const maxHP  = Math.max(1, info.hpBase + conMod);
+    const dexMod = Dice.modifier(stats.DEX);
+    GS.character = {
+      name, cls, level:1, xp:0,
+      stats, maxHP, hp: maxHP,
+      ac: 10 + dexMod,
+      inventory: [info.weapon],
+      gold: 10,
+    };
+  },
+
+  gainXP(amount) {
+    const c = GS.character;
+    c.xp += amount;
+    UI.updateStatus();
+    while (c.level < XP_TABLE.length - 1 && c.xp >= XP_TABLE[c.level]) {
+      this.levelUp();
+    }
+  },
+
+  levelUp() {
+    const c = GS.character;
+    c.level++;
+    const hpGain = Dice.roll(CLASSES[c.cls].hpBase) + Dice.modifier(c.stats.CON);
+    c.maxHP += Math.max(1, hpGain);
+    c.hp = c.maxHP;
+    Narration.tell(
+      `Aufgestiegen! Du bist jetzt Stufe ${c.level}! Deine Lebenspunkte steigen auf ${c.maxHP}!`,
+      'success'
+    );
+    UI.updateStatus();
+    Persist.save();
+  },
+
+  statLine() {
+    const s = GS.character.stats;
+    return `STR:${s.STR} GES:${s.DEX} KON:${s.CON} INT:${s.INT} WIS:${s.WIS} CHA:${s.CHA}`;
+  },
+};
+
+// ============================================================
+// === COMBAT ENGINE
+// ============================================================
+const Combat = {
+  start(enemy) {
+    GS.combat = {
+      enemy: { ...enemy },
+      stealthActive: false,
+      enemyStunned: false,
+      round: 1,
+    };
+    GS.mode = 'combat';
+    UI.setHint('"Angreifen" · "Fliehen"' + (CLASSES[GS.character.cls].specialCmd ? ` · "${CLASSES[GS.character.cls].specialCmd}"` : ''));
+  },
+
+  playerAttack() {
+    const c = GS.character;
+    const e = GS.combat.enemy;
+    const roll = Dice.roll(20) + Dice.modifier(c.stats.STR);
+    if (roll >= e.ac) {
+      const dmg = Math.max(1, Dice.roll(CLASSES[c.cls].weaponDie) + Dice.modifier(c.stats.STR));
+      e.hp -= dmg;
+      Narration.add(`Du greifst ${e.name} an! Treffer! ${dmg} Schaden. (Gegner: ${Math.max(0,e.hp)}/${e.maxHP} LP)`, 'combat');
+    } else {
+      Narration.add(`Du greifst ${e.name} an — aber verfehlst! (Wurf: ${roll} gegen Rüstung ${e.ac})`, 'combat');
+    }
+  },
+
+  playerSpell() {
+    const c = GS.character;
+    const e = GS.combat.enemy;
+    const dmg = Math.max(1, Dice.roll(6) + Dice.roll(6) + Dice.modifier(c.stats.INT));
+    e.hp -= dmg;
+    Narration.add(`Du schleudert einen mächtigen Zauber auf ${e.name}! ${dmg} Magieschaden. (Gegner: ${Math.max(0,e.hp)}/${e.maxHP} LP)`, 'combat');
+  },
+
+  playerHeal() {
+    const c = GS.character;
+    const amount = Math.max(1, Dice.roll(8) + Dice.modifier(c.stats.WIS));
+    c.hp = Math.min(c.maxHP, c.hp + amount);
+    Narration.add(`Du heilst dich! +${amount} Lebenspunkte. (${c.hp}/${c.maxHP} LP)`, 'success');
+    UI.updateStatus();
+  },
+
+  playerStealth() {
+    const c = GS.character;
+    const roll = Dice.roll(20) + Dice.modifier(c.stats.DEX);
+    if (roll >= 12) {
+      GS.combat.enemyStunned = true;
+      Narration.add(`Du schleichst dich heran! Der Feind sieht dich nicht. Nächster Angriff trifft automatisch!`, 'success');
+    } else {
+      Narration.add(`Du versuchst dich zu verstecken, aber ${GS.combat.enemy.name} bemerkt dich! (Wurf: ${roll})`, 'combat');
+    }
+  },
+
+  enemyAttack() {
+    const c = GS.character;
+    const e = GS.combat.enemy;
+    if (GS.combat.enemyStunned) {
+      GS.combat.enemyStunned = false;
+      Narration.add(`${e.name} sucht dich verwirrt — kann dich nicht finden!`, 'combat');
+      return;
+    }
+    const roll = Dice.roll(20) + (e.attackBonus || 0);
+    if (roll >= c.ac) {
+      const dmg = Math.max(1, Dice.roll(e.damageDie || 4) + (e.dmgBonus || 0));
+      c.hp -= dmg;
+      c.hp = Math.max(0, c.hp);
+      Narration.add(`${e.name} greift dich an! Treffer! ${dmg} Schaden. (Du: ${c.hp}/${c.maxHP} LP)`, 'combat');
+      UI.updateStatus();
+    } else {
+      Narration.add(`${e.name} greift an — aber trifft nicht! (Wurf: ${roll} gegen deine Rüstung ${c.ac})`, 'combat');
+    }
+  },
+
+  flee() {
+    const c = GS.character;
+    const roll = Dice.roll(20) + Dice.modifier(c.stats.DEX);
+    if (roll >= 12) {
+      GS.combat = null;
+      GS.mode = 'explore';
+      Narration.tellThen(`Du flüchtest erfolgreich!`, 'system', () => Game.openCommandWindow());
+    } else {
+      Narration.add(`Du versuchst zu fliehen, schaffst es aber nicht! (Wurf: ${roll})`, 'combat');
+      this.enemyAttack();
+      setTimeout(() => this.checkEnd(), 400);
+    }
+  },
+
+  resolveRound(action) {
+    // Player acts
+    if (action === 'attack') {
+      if (GS.combat.stealthActive) {
+        // auto-hit
+        const c = GS.character;
+        const e = GS.combat.enemy;
+        const dmg = Math.max(1, Dice.roll(CLASSES[c.cls].weaponDie) + Dice.modifier(c.stats.STR) + 2);
+        e.hp -= dmg;
+        GS.combat.stealthActive = false;
+        Narration.add(`Du springst aus dem Schatten! Kritischer Treffer! ${dmg} Schaden! (Gegner: ${Math.max(0,e.hp)}/${e.maxHP} LP)`, 'combat');
+      } else {
+        this.playerAttack();
+      }
+    } else if (action === 'spell')   { this.playerSpell(); }
+    else if (action === 'heal')      { this.playerHeal(); }
+    else if (action === 'stealth')   { this.playerStealth(); return this.checkEnd(); }
+
+    if (this.checkEnd()) return;
+
+    // Enemy acts
+    setTimeout(() => {
+      this.enemyAttack();
+      GS.combat.round++;
+      this.checkEnd();
+      Persist.save();
+    }, 600);
+  },
+
+  checkEnd() {
+    const c = GS.character;
+    const e = GS.combat?.enemy;
+    if (!e) return true;
+
+    if (e.hp <= 0) {
+      const xp = e.xpReward || 50;
+      const gold = e.goldReward || 5;
+      c.gold += gold;
+      GS.combat = null;
+      GS.mode = 'explore';
+      Narration.tellThen(
+        `${e.name} ist besiegt! Du gewinnst ${xp} Erfahrungspunkte und ${gold} Goldmünzen!`,
+        'success',
+        () => {
+          Character.gainXP(xp);
+          UI.updateStatus();
+          Persist.save();
+          setTimeout(() => Game.advanceRoom(), 1200);
+        }
+      );
+      return true;
+    }
+
+    if (c.hp <= 0) {
+      GS.combat = null;
+      GS.mode = 'gameover';
+      Narration.tellThen(
+        `Du wurdest besiegt! Doch ein Held gibt nicht auf. Du erwachst schwach aber lebendig.`,
+        'combat',
+        () => {
+          c.hp = Math.max(1, Math.floor(c.maxHP / 2));
+          UI.updateStatus();
+          GS.mode = 'explore';
+          Persist.save();
+          setTimeout(() => Game.advanceRoom(), 1000);
+        }
+      );
+      return true;
+    }
+
+    // Still fighting — open command window again
+    setTimeout(() => Game.openCommandWindow(), 800);
+    return false;
+  },
+};
+
+// ============================================================
+// === CAMPAIGN DATA
+// ============================================================
+const CAMPAIGN = [
+  // ACT 0: Das Dorf
+  {
+    title: 'Das Dorf Eichenhain',
+    rooms: [
+      {
+        id: 'dorf_ankunft',
+        type: 'story',
+        text: `Du stehst am Eingang des kleinen Dorfes Eichenhain. Die Dorfbewohner sehen ängstlich aus. Eine alte Frau ruft dir zu: "Held! Der Drache Feuerklaue bedroht unser Dorf! Bitte hilf uns!" Du nimmst all deinen Mut zusammen. Das Abenteuer beginnt!`,
+        hint: '"Weiter" um fortzufahren',
+        advance: 'move',
+        xp: 20,
+      },
+      {
+        id: 'dorf_goblin',
+        type: 'combat',
+        intro: `Ein kleiner Goblin springt hinter einem Busch hervor! Er sieht frech aus. "Buh!" ruft er und zieht sein Messer.`,
+        enemy: { name:'Goblin', hp:6, maxHP:6, ac:10, attackBonus:0, damageDie:4, dmgBonus:0, xpReward:40, goldReward:3 },
+      },
+      {
+        id: 'dorf_aeltester',
+        type: 'story',
+        text: `Der Dorfälteste bedankt sich herzlich. "Tapferer Held! Nimm diese Schatzkarte — sie zeigt den Weg zum Drachen. Pass auf dich auf im dunklen Wald!" Er drückt dir die Karte in die Hand.`,
+        hint: '"Weiter" um in den Wald zu gehen',
+        advance: 'move',
+        xp: 50,
+        loot: 'Schatzkarte',
+        flag: 'metElder',
+      },
+    ],
+  },
+  // ACT 1: Der Wald
+  {
+    title: 'Der dunkle Wald',
+    rooms: [
+      {
+        id: 'wald_eingang',
+        type: 'combat',
+        intro: `Der Wald ist dunkel und geheimnisvoll. Plötzlich springt eine riesige Wolfsspinne aus den Büschen! Ihre acht Augen glitzern böse.`,
+        enemy: { name:'Wolfsspinne', hp:10, maxHP:10, ac:11, attackBonus:1, damageDie:6, dmgBonus:0, xpReward:65, goldReward:4 },
+      },
+      {
+        id: 'wald_lichtung',
+        type: 'combat',
+        intro: `Auf einer Lichtung sitzt eine Gruppe Goblins um ein Lagerfeuer. Sie entdecken dich! Zwei stürmen auf dich zu!`,
+        enemy: { name:'Goblin-Duo', hp:14, maxHP:14, ac:10, attackBonus:1, damageDie:4, dmgBonus:0, xpReward:80, goldReward:6 },
+      },
+      {
+        id: 'wald_ritter',
+        type: 'story',
+        text: `Du findest einen verletzten Ritter an einen Baum gelehnt. "Ich wurde von dem Troll überwältigt," stöhnt er. "Nimm mein Schwert, Held — du wirst es brauchen!" Er drückt dir eine glänzende Klinge in die Hand.`,
+        hint: '"Weiter" um fortzufahren',
+        advance: 'move',
+        xp: 40,
+        loot: 'Eisenschwert',
+      },
+      {
+        id: 'wald_troll',
+        type: 'combat',
+        intro: `Ein riesiger Waldtroll versperrt den Weg! Er ist so groß wie ein Baum und riecht furchtbar. "KLEINES MENSCH! ICH ZERQUETSCHE!" brüllt er.`,
+        enemy: { name:'Waldtroll', hp:22, maxHP:22, ac:13, attackBonus:2, damageDie:8, dmgBonus:0, xpReward:180, goldReward:15 },
+      },
+    ],
+  },
+  // ACT 2: Die Höhle
+  {
+    title: 'Die dunkle Höhle',
+    rooms: [
+      {
+        id: 'hoehle_eingang',
+        type: 'combat',
+        intro: `Die Höhle ist kalt und feucht. Ein Schwarm Fledermäuse stürzt sich auf dich! Ihre kleinen Zähne sind scharf wie Nadeln!`,
+        enemy: { name:'Fledermausschwarm', hp:8, maxHP:8, ac:12, attackBonus:1, damageDie:4, dmgBonus:0, xpReward:55, goldReward:0 },
+      },
+      {
+        id: 'hoehle_schatz',
+        type: 'story',
+        text: `Du entdeckst eine Schatzkammer! Eine goldene Truhe steht in der Mitte. Du öffnest sie — darin liegt ein Heiltrank und 20 Goldmünzen! Das Glück ist heute auf deiner Seite.`,
+        hint: '"Weiter" um tiefer in die Höhle zu gehen',
+        advance: 'move',
+        xp: 30,
+        loot: 'Heiltrank',
+        gold: 20,
+      },
+      {
+        id: 'hoehle_golem',
+        type: 'combat',
+        intro: `Ein riesiger Steingolem bewacht den Durchgang! Seine Augen leuchten rot. Er hebt eine schwere Faust. Doch er bewegt sich langsam...`,
+        enemy: { name:'Steingolem', hp:28, maxHP:28, ac:15, attackBonus:3, damageDie:10, dmgBonus:0, xpReward:240, goldReward:0 },
+      },
+      {
+        id: 'hoehle_ork',
+        type: 'combat',
+        intro: `Ein mächtiger Ork-Häuptling blockiert den Ausgang! Er trägt das Zeichen des Drachen auf seinem Schild. "Niemand kommt hier durch!" brüllt er.`,
+        enemy: { name:'Ork-Häuptling', hp:32, maxHP:32, ac:14, attackBonus:4, damageDie:8, dmgBonus:2, xpReward:280, goldReward:20 },
+      },
+    ],
+  },
+  // ACT 3: Der Berg
+  {
+    title: 'Der gefährliche Berg',
+    rooms: [
+      {
+        id: 'berg_pfad',
+        type: 'combat',
+        intro: `Der Bergpfad ist steil und gefährlich. Zwei Bergräuber lauern hinter einem Felsen! "Dein Gold oder dein Leben!" rufen sie.`,
+        enemy: { name:'Bergräuber', hp:26, maxHP:26, ac:13, attackBonus:2, damageDie:6, dmgBonus:0, xpReward:200, goldReward:18 },
+      },
+      {
+        id: 'berg_lager',
+        type: 'story',
+        text: `Du findest ein altes Gebirgslager mit einem warmen Feuer. Auf dem Tisch liegt eine Notiz: "Der Drache Feuerklaue hasst Eis! Sein Bauch ist seine schwache Stelle!" Du rastest kurz und schöpfst neue Kraft.`,
+        hint: '"Weiter" um zum Gipfel zu gehen',
+        advance: 'move',
+        xp: 60,
+        healFull: true,
+        flag: 'foundWeakness',
+      },
+      {
+        id: 'berg_daemon',
+        type: 'combat',
+        intro: `Aus dem Fels tritt ein Bergdämon! Er ist halb Feuer, halb Stein. Sein Atem ist heiß wie ein Ofen. "Du wirst den Drachen nicht erreichen!" faucht er.`,
+        enemy: { name:'Bergdämon', hp:38, maxHP:38, ac:15, attackBonus:5, damageDie:8, dmgBonus:3, xpReward:350, goldReward:30 },
+      },
+    ],
+  },
+  // ACT 4: Die Drachenfestung
+  {
+    title: 'Die Drachenfestung',
+    rooms: [
+      {
+        id: 'festung_tor',
+        type: 'combat',
+        intro: `Vor dem massiven Eisentor der Festung stehen zwei schwer bewaffnete Drachenwächter. Sie heben ihre Speere. "Kein Durchgang!"`,
+        enemy: { name:'Drachenwächter', hp:36, maxHP:36, ac:15, attackBonus:4, damageDie:8, dmgBonus:0, xpReward:300, goldReward:25 },
+      },
+      {
+        id: 'festung_halle',
+        type: 'combat',
+        intro: `In der großen Halle wartet eine Überraschung — ein junger Drache! Er ist kleiner als sein Vater, aber trotzdem sehr gefährlich. Er spuckt Feuerflammen auf dich!`,
+        enemy: { name:'Jungdrache', hp:40, maxHP:40, ac:16, attackBonus:5, damageDie:10, dmgBonus:0, xpReward:400, goldReward:0 },
+      },
+      {
+        id: 'festung_thronsaal',
+        type: 'story',
+        text: `Du stehst vor dem Thronsaal. Durch die mächtigen Türen hörst du das tiefe Atmen des Drachen. Ein magischer Brunnen steht neben dir und leuchtet blau. Du trinkst — und fühlst wie deine Wunden heilen! Du bist bereit!`,
+        hint: '"Weiter" um den Drachen zu bekämpfen',
+        advance: 'move',
+        xp: 80,
+        healFull: true,
+      },
+      {
+        id: 'festung_drache',
+        type: 'combat',
+        intro: `Die Türen fliegen auf! Auf einem Thron aus geschmolzenem Gold sitzt FEUERKLAUE, der mächtigste Drache des Landes! Seine Augen leuchten wie Lava. "Ein kleiner Held wagt es, MICH herauszufordern?!" Seine Stimme erschüttert die Wände. "DANN KÄMPFE!"`,
+        enemy: { name:'Feuerklaue, der Drache', hp:60, maxHP:60, ac:18, attackBonus:7, damageDie:12, dmgBonus:4, xpReward:1000, goldReward:100 },
+        isFinalBoss: true,
+      },
+    ],
+  },
+];
+
+// ============================================================
+// === ENDLESS MODE
+// ============================================================
+const ENDLESS_QUESTS = [
+  { title:'Goblin-Überfall',    intro:'Ein Goblin-Stamm überfällt das Dorf! Du musst sie aufhalten!',  enemy:{ name:'Goblin-Stamm',     hp:20, maxHP:20, ac:11, attackBonus:2, damageDie:6,  dmgBonus:0 } },
+  { title:'Der Nekromant',      intro:'Ein finsterer Nekromant erweckt Untote! Er darf nicht entkommen!', enemy:{ name:'Nekromant',       hp:28, maxHP:28, ac:12, attackBonus:3, damageDie:8,  dmgBonus:1 } },
+  { title:'Der schwarze Ritter',intro:'Ein verfluchter Ritter fordert dich zum Duell! Er ist ein ebenbürtiger Gegner.', enemy:{ name:'Schwarzritter', hp:35, maxHP:35, ac:17, attackBonus:5, damageDie:8,  dmgBonus:2 } },
+  { title:'Der Riese',          intro:'Ein Riese bedroht die nächste Stadt! Du stellst dich ihm alleine entgegen!', enemy:{ name:'Steinriese',    hp:45, maxHP:45, ac:13, attackBonus:4, damageDie:12, dmgBonus:3 } },
+  { title:'Piraten!',           intro:'Ein Piraten-Hauptmann hat den Hafen besetzt. Er muss gestoppt werden!',  enemy:{ name:'Piraten-Hauptmann', hp:30, maxHP:30, ac:14, attackBonus:4, damageDie:8, dmgBonus:1 } },
+  { title:'Der Vampir',         intro:'Ein Vampir hat sich in der Nähe eingenistet und stiehlt Lebensenergie!',  enemy:{ name:'Vampir',          hp:38, maxHP:38, ac:15, attackBonus:5, damageDie:8,  dmgBonus:2 } },
+  { title:'Das Feuer-Elementar',intro:'Ein Feuer-Elementar tobt außer Kontrolle und bedroht alles!',             enemy:{ name:'Feuer-Elementar', hp:32, maxHP:32, ac:14, attackBonus:4, damageDie:10, dmgBonus:2 } },
+  { title:'Geister im Schloss', intro:'Ein altes Schloss ist von Geistern bevölkert. Du wirst gerufen es zu säubern!', enemy:{ name:'Geisterfürst',   hp:25, maxHP:25, ac:16, attackBonus:3, damageDie:6,  dmgBonus:1 } },
+  { title:'Die Arena',          intro:'Du wirst in die große Arena eingeladen! Der Gegner ist unbekannt.',       enemy:{ name:'Arena-Champion',  hp:40, maxHP:40, ac:15, attackBonus:6, damageDie:10, dmgBonus:2 } },
+  { title:'Der Troll-König',    intro:'Der Troll-König fordert Tribut! Du weigerst dich und kämpfst!',          enemy:{ name:'Troll-König',      hp:50, maxHP:50, ac:14, attackBonus:5, damageDie:10, dmgBonus:3 } },
+];
+
+const Endless = {
+  nextQuest() {
+    const lvl  = GS.character.level;
+    const pool = ENDLESS_QUESTS;
+    const idx  = GS.progress.endlessCount % pool.length;
+    const q    = pool[idx];
+    GS.progress.endlessCount++;
+
+    // Scale enemy to player level
+    const scale = 1 + (lvl - 1) * 0.3;
+    const enemy = {
+      ...q.enemy,
+      hp:    Math.round(q.enemy.hp * scale),
+      maxHP: Math.round(q.enemy.hp * scale),
+      ac:    q.enemy.ac + Math.floor(lvl / 3),
+      attackBonus: q.enemy.attackBonus + Math.floor(lvl / 2),
+      xpReward: 100 * lvl,
+      goldReward: 10 * lvl,
+    };
+
+    Narration.tellThen(
+      `Neue Quest: ${q.title}! ${q.intro}`,
+      'story',
+      () => {
+        Combat.start(enemy);
+        Game.openCommandWindow();
+      }
+    );
+  },
+};
+
+// ============================================================
+// === GAME LOOP
+// ============================================================
+const Game = {
+  start(name, cls) {
+    Character.build(name, cls);
+    GS.mode    = 'explore';
+    GS.progress = { act:0, room:0, campaignComplete:false, endlessCount:0 };
+    GS.flags   = {};
+    GS.log     = [];
+    UI.switchToGame();
+    UI.updateStatus();
+    Persist.save();
+
+    const c = GS.character;
+    const classDesc = {
+      Krieger: 'Als Krieger bist du stark und tapfer. Du kämpfst mit deinem Schwert.',
+      Paladin: 'Als Paladin bist du mutig und kannst dich sogar selbst heilen.',
+      'Waldläufer': 'Als Waldläufer bist du flink und kannst dich an Feinde heranschleichen.',
+      Magier: 'Als Magier kennst du mächtige Zauber die Feinde direkt treffen.',
+    };
+    const intro = `Willkommen, ${c.name}! ${classDesc[cls]} Das Dorf Eichenhain braucht dich. Der böse Drache Feuerklaue muss gestoppt werden! Deine Reise beginnt jetzt!`;
+
+    Narration.tellThen(intro, 'story', () => this.loadCurrentRoom());
+  },
+
+  loadCurrentRoom() {
+    const { act, room } = GS.progress;
+    if (act >= CAMPAIGN.length) { this.startEndless(); return; }
+    const roomData = CAMPAIGN[act].rooms[room];
+    if (!roomData) { this.advanceAct(); return; }
+
+    if (roomData.type === 'story') {
+      // Apply effects
+      if (roomData.healFull) { GS.character.hp = GS.character.maxHP; UI.updateStatus(); }
+      if (roomData.gold)     { GS.character.gold += roomData.gold; }
+      if (roomData.loot)     { GS.character.inventory.push(roomData.loot); }
+      if (roomData.flag)     { GS.flags[roomData.flag] = true; }
+
+      UI.setHint(roomData.hint || '"Weiter" um fortzufahren');
+      GS.mode = 'explore';
+      Narration.tellThen(roomData.text, 'story', () => {
+        if (roomData.xp) Character.gainXP(roomData.xp);
+        Persist.save();
+        this.openCommandWindow();
+      });
+    } else if (roomData.type === 'combat') {
+      Narration.tellThen(roomData.intro, 'story', () => {
+        Combat.start(roomData.enemy);
+        if (roomData.isFinalBoss) GS.flags.fightingBoss = true;
+        this.openCommandWindow();
+      });
+    }
+  },
+
+  advanceRoom() {
+    const act = CAMPAIGN[GS.progress.act];
+    GS.progress.room++;
+    if (GS.progress.room >= act.rooms.length) {
+      this.advanceAct();
+    } else {
+      setTimeout(() => this.loadCurrentRoom(), 600);
+    }
+  },
+
+  advanceAct() {
+    GS.progress.act++;
+    GS.progress.room = 0;
+    if (GS.progress.act >= CAMPAIGN.length) {
+      this.completeCampaign();
+    } else {
+      const actTitle = CAMPAIGN[GS.progress.act].title;
+      Narration.tellThen(`Neues Gebiet: ${actTitle}!`, 'system', () => {
+        setTimeout(() => this.loadCurrentRoom(), 600);
+      });
+    }
+  },
+
+  completeCampaign() {
+    GS.progress.campaignComplete = true;
+    GS.mode = 'endless_intro';
+    Persist.save();
+    Narration.tellThen(
+      `UNGLAUBLICH! Du hast Feuerklaue besiegt! Das Dorf Eichenhain ist gerettet! Alle Menschen jubeln deinen Namen! Du bist ein wahrer Held, ${GS.character.name}! Das Königreich ist für immer in deiner Schuld!`,
+      'success',
+      () => setTimeout(() => {
+        Narration.tellThen(
+          `Aber das Abenteuer geht weiter! Neue Bedrohungen warten. Bist du bereit für weitere Quests? Sag "Weiter" um fortzufahren!`,
+          'story',
+          () => { GS.mode = 'endless_ready'; this.openCommandWindow(); }
+        );
+      }, 1000)
+    );
+  },
+
+  startEndless() {
+    GS.mode = 'endless';
+    Endless.nextQuest();
+  },
+
+  openCommandWindow() {
+    const c  = GS.character;
+    const cm = GS.combat;
+    let hint = '';
+
+    if (GS.mode === 'combat' && cm) {
+      const special = CLASSES[c.cls].specialCmd;
+      hint = `"Angreifen" · "Fliehen"${special ? ` · "${special}"` : ''}`;
+    } else if (GS.mode === 'explore') {
+      hint = '"Weiter" · "Inventar" · "Werte"';
+    } else if (GS.mode === 'endless_ready') {
+      hint = '"Weiter" für nächste Quest';
+    }
+    UI.setHint(hint);
+
+    if (Speech.hasRecognition) {
+      setTimeout(() => Speech.listen(transcripts => this.handleCommand(transcripts)), 300);
+    }
+    // Text fallback is always visible if no recognition
+  },
+
+  handleCommand(transcripts) {
+    const cmd = Parser.parse(transcripts);
+
+    if (!cmd) {
+      Narration.tellThen(
+        `Das habe ich nicht verstanden. ${UI._currentHint()}`,
+        'system',
+        () => this.openCommandWindow()
+      );
+      return;
+    }
+
+    // --- PAUSE / RESUME ---
+    if (cmd === 'pause') {
+      GS.mode = 'paused';
+      Narration.add('Spiel pausiert. Sag "Weiterspielen" um fortzufahren.', 'system');
+      return;
+    }
+    if (cmd === 'resume' && GS.mode === 'paused') {
+      GS.mode = GS.combat ? 'combat' : 'explore';
+      Narration.tellThen('Weiter geht\'s!', 'system', () => this.openCommandWindow());
+      return;
+    }
+    if (GS.mode === 'paused') {
+      Narration.add('Das Spiel ist pausiert. Sag "Weiterspielen".', 'system');
+      return;
+    }
+
+    // --- HELP ---
+    if (cmd === 'help') {
+      const special = CLASSES[c.cls].specialCmd;
+      const helpText = GS.mode === 'combat'
+        ? `Im Kampf kannst du sagen: Angreifen${special ? ', ' + special : ''}, Fliehen.`
+        : `Du kannst sagen: Weiter, Inventar, Werte${special ? ', ' + special : ''}.`;
+      Narration.tellThen(helpText, 'system', () => this.openCommandWindow());
+      return;
+    }
+
+    // --- STATS ---
+    if (cmd === 'stats') {
+      const c = GS.character;
+      Narration.tellThen(
+        `${c.name}, Stufe ${c.level} ${c.cls}. Leben: ${c.hp} von ${c.maxHP}. Gold: ${c.gold}. ${Character.statLine()}.`,
+        'system', () => this.openCommandWindow()
+      );
+      return;
+    }
+
+    // --- INVENTORY ---
+    if (cmd === 'inventory') {
+      const inv = GS.character.inventory.length
+        ? GS.character.inventory.join(', ')
+        : 'nichts';
+      Narration.tellThen(`Dein Inventar: ${inv}. Gold: ${GS.character.gold}.`, 'system', () => this.openCommandWindow());
+      return;
+    }
+
+    // --- MOVE (endless_ready) ---
+    if (cmd === 'move' && GS.mode === 'endless_ready') {
+      GS.mode = 'endless';
+      this.startEndless();
+      return;
+    }
+
+    // --- MOVE (explore / story) ---
+    if (cmd === 'move' && GS.mode === 'explore') {
+      this.advanceRoom();
+      return;
+    }
+
+    // --- COMBAT COMMANDS ---
+    if (GS.mode === 'combat') {
+      const cls = GS.character.cls;
+
+      if (cmd === 'attack') { Combat.resolveRound('attack'); return; }
+
+      if (cmd === 'spell') {
+        if (cls !== 'Magier') {
+          Narration.tellThen('Nur Magier können zaubern!', 'system', () => this.openCommandWindow());
+        } else {
+          Combat.resolveRound('spell');
+        }
+        return;
+      }
+      if (cmd === 'heal') {
+        if (cls !== 'Paladin') {
+          Narration.tellThen('Nur Paladine können sich heilen!', 'system', () => this.openCommandWindow());
+        } else {
+          Combat.resolveRound('heal');
+        }
+        return;
+      }
+      if (cmd === 'stealth') {
+        if (cls !== 'Waldläufer') {
+          Narration.tellThen('Nur Waldläufer können sich schleichen!', 'system', () => this.openCommandWindow());
+        } else {
+          Combat.resolveRound('stealth');
+        }
+        return;
+      }
+      if (cmd === 'flee') { Combat.flee(); return; }
+
+      // Command not valid in combat context
+      Narration.tellThen(`Im Kampf kannst du das nicht tun! Greif an oder fliehe!`, 'system', () => this.openCommandWindow());
+      return;
+    }
+
+    // --- MOVE inside combat (blocked) ---
+    if (cmd === 'move' && GS.mode === 'combat') {
+      Narration.tellThen(`Du kannst nicht gehen während du kämpfst!`, 'system', () => this.openCommandWindow());
+      return;
+    }
+
+    // Default fallback
+    Narration.tellThen(`Das geht gerade nicht. ${UI._currentHint()}`, 'system', () => this.openCommandWindow());
+  },
+};
+
+// Patch UI for hint retrieval
+UI._currentHint = () => document.getElementById('hint-bar').textContent;
+
+// ============================================================
+// === SETUP SCREEN LOGIC
+// ============================================================
+(function initSetup() {
+  Speech.init();
+
+  const nameInput  = document.getElementById('name-input');
+  const micNameBtn = document.getElementById('mic-name-btn');
+  const startBtn   = document.getElementById('start-btn');
+  const classBtns  = document.querySelectorAll('.class-btn');
+  let selectedClass = null;
+
+  const checkReady = () => {
+    startBtn.disabled = !(nameInput.value.trim() && selectedClass);
+  };
+
+  nameInput.addEventListener('input', checkReady);
+
+  classBtns.forEach(btn => {
+    btn.addEventListener('click', () => {
+      classBtns.forEach(b => b.classList.remove('selected'));
+      btn.classList.add('selected');
+      selectedClass = btn.dataset.class;
+      checkReady();
+    });
+  });
+
+  // Mic button for name
+  micNameBtn.addEventListener('click', () => {
+    if (!Speech.hasRecognition) return;
+    micNameBtn.classList.add('listening');
+    Speech.listen(transcripts => {
+      micNameBtn.classList.remove('listening');
+      if (transcripts && transcripts[0]) {
+        // Check if it's a class name
+        const t = transcripts[0].trim();
+        const matchedClass = Object.keys(CLASSES).find(
+          cls => t.toLowerCase().includes(cls.toLowerCase())
+        );
+        if (matchedClass) {
+          // It was a class selection, not a name
+          classBtns.forEach(b => b.classList.remove('selected'));
+          const classBtn = document.querySelector(`[data-class="${matchedClass}"]`);
+          if (classBtn) { classBtn.classList.add('selected'); selectedClass = matchedClass; }
+        } else {
+          // Treat as name
+          const name = t.charAt(0).toUpperCase() + t.slice(1).toLowerCase();
+          nameInput.value = name.substring(0, 20);
+        }
+        checkReady();
+      }
+    });
+  });
+
+  startBtn.addEventListener('click', () => {
+    const name = nameInput.value.trim();
+    if (!name || !selectedClass) return;
+    Game.start(name, selectedClass);
+  });
+
+  // Text fallback for game commands
+  const textInput = document.getElementById('text-input-cmd');
+  const textSend  = document.getElementById('text-send-btn');
+  const sendTextCmd = () => {
+    const val = textInput.value.trim();
+    if (!val) return;
+    UI.showLastCommand(val);
+    textInput.value = '';
+    Speech.stopListening();
+    Game.handleCommand([val]);
+  };
+  textSend.addEventListener('click', sendTextCmd);
+  textInput.addEventListener('keydown', e => { if (e.key === 'Enter') sendTextCmd(); });
+
+  // Load existing save?
+  const saved = Persist.load();
+  if (saved && saved.character && saved.character.name) {
+    // Could offer "continue" — for simplicity, just pre-fill name
+    nameInput.value = saved.character.name;
+    const savedClass = saved.character.cls;
+    if (savedClass) {
+      const btn = document.querySelector(`[data-class="${savedClass}"]`);
+      if (btn) { btn.classList.add('selected'); selectedClass = savedClass; }
+    }
+    checkReady();
+  }
+})();
+</script>
+</body>
+</html>
