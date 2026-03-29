@@ -500,9 +500,16 @@ const Speech = {
     if (this.hasSynthesis) {
       const pickVoice = () => {
         const voices = speechSynthesis.getVoices();
-        this._voice = voices.find(v => v.lang === 'de-DE') ||
-                      voices.find(v => v.lang.startsWith('de')) ||
-                      voices[0] || null;
+        // Prefer high-quality named voices, then any de-DE
+        this._voice =
+          voices.find(v => v.name === 'Google Deutsch') ||
+          voices.find(v => v.name.includes('Anna'))     ||   // macOS
+          voices.find(v => v.name.includes('Petra'))    ||   // macOS alt
+          voices.find(v => v.name.includes('Yannick'))  ||   // macOS alt
+          voices.find(v => v.lang === 'de-DE' && !v.localService) ||  // online voices first
+          voices.find(v => v.lang === 'de-DE') ||
+          voices.find(v => v.lang.startsWith('de')) ||
+          voices[0] || null;
       };
       speechSynthesis.onvoiceschanged = pickVoice;
       pickVoice();
@@ -513,15 +520,36 @@ const Speech = {
     }
   },
 
-  speak(text, onDone) {
-    this._queue.push({ text, onDone });
+  // type: 'story' | 'combat' | 'success' | 'system'
+  speak(text, onDone, type = 'story') {
+    this._queue.push({ text, onDone, type });
     if (!this._busy) this._processQueue();
+  },
+
+  // Preprocess text for better TTS output:
+  // - write out digits so TTS doesn't stumble
+  // - slow down ALL-CAPS words (names like FEUERKLAUE) by surrounding with commas
+  // - add brief pause after exclamation in the middle of a sentence
+  _preprocess(text) {
+    const NUMS = ['null','eins','zwei','drei','vier','fünf','sechs','sieben','acht','neun','zehn',
+                  'elf','zwölf','dreizehn','vierzehn','fünfzehn','sechzehn','siebzehn','achtzehn',
+                  'neunzehn','zwanzig'];
+    return text
+      // numbers 0-20 → words
+      .replace(/\b(\d+)\b/g, (_, n) => {
+        const num = parseInt(n, 10);
+        return num <= 20 ? NUMS[num] : n;
+      })
+      // ALL-CAPS sequences (≥4 chars) → add surrounding commas for emphasis pause
+      .replace(/\b([A-ZÄÖÜ]{4,})\b/g, ', $1, ')
+      // clean up double spaces/commas
+      .replace(/ ,/g, ',').replace(/,+/g, ',').replace(/  +/g, ' ');
   },
 
   _processQueue() {
     if (!this._queue.length) { this._busy = false; return; }
     this._busy = true;
-    const { text, onDone } = this._queue.shift();
+    const { text, onDone, type } = this._queue.shift();
     UI.setMicState('speaking');
     if (!this.hasSynthesis) {
       if (onDone) onDone();
@@ -529,8 +557,22 @@ const Speech = {
       this._processQueue();
       return;
     }
-    // Split at sentence boundaries to avoid Chrome 15s cut-off
-    const sentences = text.match(/[^.!?]+[.!?]*/g) || [text];
+
+    // Context-sensitive prosody
+    let rate, pitch, pauseMs;
+    if (type === 'combat') {
+      rate = 1.0; pitch = 1.15; pauseMs = 60;   // faster, slightly higher — tense
+    } else if (type === 'success') {
+      rate = 0.92; pitch = 1.2; pauseMs = 80;   // enthusiastic
+    } else if (type === 'system') {
+      rate = 0.9; pitch = 0.95; pauseMs = 60;   // calm, informational
+    } else {
+      rate = 0.82; pitch = 1.0; pauseMs = 120;  // story: slower, more dramatic
+    }
+
+    const processed = this._preprocess(text);
+    // Split at sentence boundaries to avoid Chrome 15s cut-off bug
+    const sentences = processed.match(/[^.!?]+[.!?]*/g) || [processed];
     let i = 0;
     const next = () => {
       if (i >= sentences.length) {
@@ -540,12 +582,15 @@ const Speech = {
         this._processQueue();
         return;
       }
-      const utt = new SpeechSynthesisUtterance(sentences[i++].trim());
+      const chunk = sentences[i++].trim();
+      if (!chunk) { next(); return; }
+      const utt = new SpeechSynthesisUtterance(chunk);
       utt.lang = 'de-DE';
       if (this._voice) utt.voice = this._voice;
-      utt.rate = 0.88;
-      utt.pitch = 1.0;
-      utt.onend = () => setTimeout(next, 80);
+      utt.rate  = rate;
+      utt.pitch = pitch;
+      utt.volume = 1.0;
+      utt.onend  = () => setTimeout(next, pauseMs);
       utt.onerror = () => { next(); };
       speechSynthesis.speak(utt);
     };
@@ -635,12 +680,12 @@ const Narration = {
 
   tell(text, type = 'story', onDone) {
     this.add(text, type);
-    Speech.speak(text, onDone);
+    Speech.speak(text, onDone, type);
   },
 
   tellThen(text, type, fn) {
     this.add(text, type);
-    Speech.speak(text, () => setTimeout(fn, 300));
+    Speech.speak(text, () => setTimeout(fn, 300), type);
   },
 };
 
