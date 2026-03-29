@@ -1292,21 +1292,35 @@ const Game = {
     const c  = GS.character;
     const cm = GS.combat;
     let hint = '';
+    let prompt = '';   // was gesprochen wird bevor gelauscht wird
 
     if (GS.mode === 'combat' && cm) {
       const special = CLASSES[c.cls].specialCmd;
-      hint = `"Angreifen" · "Fliehen"${special ? ` · "${special}"` : ''}`;
+      const specialLabel = { heilen:'Heilen', schleichen:'Schleichen', zaubern:'Zaubern' }[special] || '';
+      hint = `"Angreifen" · "Fliehen"${special ? ` · "${specialLabel}"` : ''}`;
+      prompt = special
+        ? `Was tust du? Angreifen, ${specialLabel}, oder Fliehen?`
+        : `Was tust du? Angreifen oder Fliehen?`;
     } else if (GS.mode === 'explore') {
       hint = '"Weiter" · "Inventar" · "Werte"';
+      prompt = 'Was möchtest du tun? Weiter gehen, Inventar prüfen, oder deine Werte ansehen?';
     } else if (GS.mode === 'endless_ready') {
       hint = '"Weiter" für nächste Quest';
+      prompt = 'Bist du bereit für die nächste Quest? Sag Weiter!';
     }
+
     UI.setHint(hint);
 
-    if (Speech.hasRecognition) {
+    if (!Speech.hasRecognition) return;  // text fallback handles input
+
+    // Speak the options prompt, then open the mic
+    if (prompt) {
+      Speech.speak(prompt, () => {
+        setTimeout(() => Speech.listen(transcripts => this.handleCommand(transcripts)), 300);
+      }, 'system');
+    } else {
       setTimeout(() => Speech.listen(transcripts => this.handleCommand(transcripts)), 300);
     }
-    // Text fallback is always visible if no recognition
   },
 
   handleCommand(transcripts) {
@@ -1314,7 +1328,7 @@ const Game = {
 
     if (!cmd) {
       Narration.tellThen(
-        `Das habe ich nicht verstanden. ${UI._currentHint()}`,
+        `Das habe ich nicht verstanden. Versuch es nochmal!`,
         'system',
         () => this.openCommandWindow()
       );
